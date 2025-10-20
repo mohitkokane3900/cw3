@@ -12,6 +12,7 @@ class _TaskPageState extends State<TaskPage> {
   final dbHelper = DatabaseHelper();
   final titleController = TextEditingController();
   final descController = TextEditingController();
+  int? selectedId;
   List<Map<String, dynamic>> tasks = [];
 
   @override
@@ -27,14 +28,33 @@ class _TaskPageState extends State<TaskPage> {
     });
   }
 
-  void addTask() async {
+  void saveTask() async {
     final title = titleController.text.trim();
     final desc = descController.text.trim();
     if (title.isEmpty) return;
-    await dbHelper.insertTask({'title': title, 'description': desc});
+
+    if (selectedId == null) {
+      await dbHelper.insertTask({'title': title, 'description': desc});
+    } else {
+      await dbHelper.updateTask({
+        'id': selectedId,
+        'title': title,
+        'description': desc,
+      });
+      selectedId = null;
+    }
+
     titleController.clear();
     descController.clear();
     refreshTasks();
+  }
+
+  void editTask(Map<String, dynamic> task) {
+    setState(() {
+      selectedId = task['id'];
+      titleController.text = task['title'];
+      descController.text = task['description'] ?? '';
+    });
   }
 
   void deleteTask(int id) async {
@@ -59,7 +79,10 @@ class _TaskPageState extends State<TaskPage> {
               decoration: const InputDecoration(labelText: 'Description'),
             ),
             const SizedBox(height: 10),
-            ElevatedButton(onPressed: addTask, child: const Text('Add Task')),
+            ElevatedButton(
+              onPressed: saveTask,
+              child: Text(selectedId == null ? 'Add Task' : 'Update Task'),
+            ),
             const SizedBox(height: 20),
             Expanded(
               child: tasks.isEmpty
@@ -72,6 +95,7 @@ class _TaskPageState extends State<TaskPage> {
                           child: ListTile(
                             title: Text(task['title']),
                             subtitle: Text(task['description'] ?? ''),
+                            onTap: () => editTask(task),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () => deleteTask(task['id']),
